@@ -26,9 +26,9 @@
 let scene, camera, renderer, points, streaks, galaxyDust, stars;
 let uniforms;
 
-const COUNT = 35000;
+const COUNT = 30000;
 const TRAIL_COUNT = 7000;
-const GALAXY_COUNT = 60000;
+const GALAXY_COUNT = 48000;
 const STAR_COUNT = 900;
 
 init();
@@ -46,7 +46,7 @@ function init() {
     powerPreference: "high-performance"
   });
 
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.setSize(innerWidth, innerHeight);
 
   // Clear fully each frame; motion trails are drawn by LineSegments, not by framebuffer buildup.
@@ -163,7 +163,8 @@ function init() {
         gl_Position = projectionMatrix * mv;
 
         float topBoost = smoothstep(0.72, 1.0, h);
-        gl_PointSize = mix(2.0, 4.8, topBoost + seed * 0.35) * (220.0 / -mv.z);
+        float pointSize = mix(2.0, 4.8, topBoost + seed * 0.35) * (220.0 / -mv.z);
+        gl_PointSize = min(pointSize, 4.6);
 
         vec3 color = neonColor(h, t, seed);
         color += vec3(0.08, 0.1, 0.12) * sin(seed * 32.0 + t * 8.0);
@@ -241,7 +242,8 @@ function addStars() {
         gl_Position = projectionMatrix * mv;
 
         float twinkle = 0.35 + 0.65 * pow(sin(time * mix(4.0, 9.0, seed) + seed * 40.0) * 0.5 + 0.5, 3.0);
-        gl_PointSize = mix(1.3, 3.8, seed) * twinkle * (300.0 / -mv.z);
+        float pointSize = mix(1.3, 3.8, seed) * twinkle * (300.0 / -mv.z);
+        gl_PointSize = min(pointSize, 4.8);
 
         vAlpha = twinkle * mix(0.32, 0.82, seed);
         vColor = mix(vec3(0.22, 0.9, 1.0), vec3(1.0, 0.84, 0.34), seed);
@@ -336,10 +338,12 @@ function addGalaxyDust() {
 
         float edgeFade = smoothstep(0.0, 0.08, flow) * (1.0 - smoothstep(0.92, 1.0, flow));
         float sparkle = 0.55 + 0.45 * sin(time * 4.0 + seed * 80.0);
-        gl_PointSize = mix(1.2, 3.8, seed) * sparkle * (285.0 / -mv.z);
+        float pointSize = mix(2.7, 6.2, seed) * sparkle * (285.0 / -mv.z);
+        
+        gl_PointSize = min(pointSize, 24.2);
 
         vColor = palette(flow + time * 0.12 + seed * 0.2);
-        vAlpha = edgeFade * mix(0.18, 0.52, seed) * sparkle;
+        vAlpha = edgeFade * mix(0.28, 0.85, seed) * sparkle;
       }
     `,
 
@@ -505,8 +509,8 @@ function animate() {
 
   const phase = t * 0.26;
   const dolly = 1.0 + Math.sin(t * 0.44) * 0.07 + Math.sin(t * 0.91) * 0.03;
-  const pathX = Math.sin(phase) * 405;
-  const pathZ = Math.cos(phase * 2.0) * 330;
+  const pathX = Math.sin(phase) * 400;
+  const pathZ = Math.cos(phase * 2.0) * 320;
   const height = 88 + Math.sin(t * 0.5) * 28 + Math.sin(t * 0.93) * 8;
   const target = new THREE.Vector3(
     Math.sin(t * 0.55) * 10,
@@ -520,8 +524,11 @@ function animate() {
   camera.position.x = pathX * dolly * frameScale;
   camera.position.z = pathZ * dolly * frameScale;
   camera.position.y = height;
-  camera.fov = (narrowView ? 74 : 68) + Math.sin(t * 0.38) * 2;
-  camera.updateProjectionMatrix();
+  const targetFov = narrowView ? 74 : 68;
+  if (camera.fov !== targetFov) {
+    camera.fov = targetFov;
+    camera.updateProjectionMatrix();
+  }
   camera.lookAt(target);
   camera.rotation.z += Math.sin(t * 0.72) * 0.018;
 
